@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+
+#define BUFFSIZE 1024
 //function for outputting an error message using perror
 void error(char* msg)
 {
@@ -19,8 +21,7 @@ void error(char* msg)
 //encrypt a message using plaintext and key sent by the enc_client program, return the encrypted message
 char* encrypt(char* plaintext, char* key)
 {
-  char* ciphertext;
-  return ciphertext;
+
 }
 
 
@@ -43,14 +44,23 @@ void setupAddressStruct(struct sockaddr_in* address,
 
 void main(int argc, char* argv[])
 {
-  //initialize variables for socket addresses
+  //initialize variables for socket addresses and message memory
   struct sockaddr_in server_addr, client_addr;
   int server_socket;
+  int client_socket;
+  socklen_t client_size;
+  int plaintext_size;
+  int key_size;
+  int pid;
+  char* buffer;
+  char* plaintext;
+  char* key;
+  char* ciphertext;
 
   //check for valid command, error and exit if no port is spec'd
   if (argc < 2)
   {
-    error("Error: enc_server expects at least 2 arguments\n");
+    error("Error: enc_server expects at least 2 arguments.\n");
     exit(EXIT_FAILURE);
   }
 
@@ -58,7 +68,7 @@ void main(int argc, char* argv[])
   server_socket = socket(AF_INET, SOCK_STREAM, 0);
   if (server_socket < 0)
   {
-    error("Error creating server listening socket\n");
+    error("Error creating server listening socket.\n");
   }
   setupAddressStruct(&server_addr, atoi(argv[1]));
 
@@ -66,7 +76,7 @@ void main(int argc, char* argv[])
   //bind the listening socket to the port specified in argv[1]
   if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
   {
-    error("ERROR on binding");
+    error("ERROR on binding.\n");
   }
 
   //listen forever using that socket
@@ -75,23 +85,56 @@ void main(int argc, char* argv[])
   //while listening (forever):
   while(1)
   {
-
-
     //wait for a connection request using accept()
-
+    client_socket = accept(server_socket, (struct sockaddr*)&client_addr, (socklen_t*)sizeof(client_addr));
+    if (client_socket < 0)
+    {
+      error("Error: could not accept connection to client socket.\n")
+    }
 
     //when a connection is recieved, create a new process with fork()
-
+    pid = fork();
+    if (pid < 0)
+    {
+      error("Error in creating child process to serve client.\n")
+    }
 
     //in the child process:
-    
-    
-      //recieve first msg from enc_client, containing size of plaintext
+    if (pid == 0)
+    {
+      //buffer to receive data from client is stored here, then concat into full message
+      buffer = (char*)calloc(BUFFSIZE, sizeof(char));
+      //recieve first msg from enc_client, containing size of plaintext. allocate a block of memory to hold the plaintext
+      recv(client_socket, buffer, BUFFSIZE, 0);
+      plaintext_size = atoi(buffer);
 
+      //validate the plaintext
+      if(plaintext_size == 0)
+      {
+        error("Did not recieve valid header from client.\n")
+      }
 
-      //recieve plaintext msg from enc_client
+      plaintext = (char*)calloc(plaintext_size, sizeof(char));
+      memset(buffer, '\0', BUFFSIZE);
 
-
+      //recieve plaintext msg from enc_client until the newline character is reached
+      while (strstr(buffer, "\n") == NULL)
+      {
+        recv(client_socket, buffer, BUFFSIZE - 1, 0);
+        //check that all data recived is valid
+        for(int i = 0; i < strlen(buffer); i++)
+        {
+          char curr = buffer[i];
+          if (((int)curr != 32) && (((int)curr - 65) > 25))
+          {
+            error("Recieved invalid plaintext input from client.\n");
+          }
+        }
+        //concatenate the contents of the buffer to the plaintext
+        strcat(plaintext, buffer);
+        memset(buffer, '\0', BUFFSIZE);
+      }
+      char* remove = strstr(buffer)
       //recieve size of key from enc_client
 
 
@@ -111,6 +154,7 @@ void main(int argc, char* argv[])
 
       
       //terminate the child process
+    }
 
   }
   //close the socket
