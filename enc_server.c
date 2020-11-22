@@ -8,6 +8,7 @@
 
 
 #define BUFFSIZE 1024
+#define CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 //function for outputting an error message using perror
 void error(char* msg)
 {
@@ -15,13 +16,38 @@ void error(char* msg)
   exit(EXIT_FAILURE);
 }
 
-//function to set up an address struct for the server socket
-
-
-//encrypt a message using plaintext and key sent by the enc_client program, return the encrypted message
-char* encrypt(char* plaintext, char* key)
+//convert a character c into its corresponding integer index value in CHARS
+int ctoi(char c)
 {
+  //char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+  char find = c;
+  char* ptr = strchr(CHARS, find);
+  int index = ptr - CHARS;
+  return index;
+}
 
+//convert an integer into its corresponding character value in CHARS
+char itoc(int i)
+{
+  char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+  return(chars[i]);
+}
+
+
+//encrypt a message using plaintext p and key k sent by the enc_client program, modify ciphertext c to be encoded message
+void encrypt(char* p, char* k, char** c)
+{
+  int pch;  //plaintext character converted to int
+  int kch;  //key character converted to int
+  int cch;  //cipher character converted to int
+  int clen = strlen(p); //the length of the plaintext limits the size of the ciphertext
+
+  //iterate over the plaintext, putting encrypted characters in the ciphertext array one at a time
+  for (int curr = 0; curr < clen; curr++)
+  {
+    cch = (ctoi(pch) + ctoi(kch) % 27));
+  }
+  return;
 }
 
 
@@ -89,14 +115,14 @@ void main(int argc, char* argv[])
     client_socket = accept(server_socket, (struct sockaddr*)&client_addr, (socklen_t*)sizeof(client_addr));
     if (client_socket < 0)
     {
-      error("Error: could not accept connection to client socket.\n")
+      error("Error: could not accept connection to client socket.\n");
     }
 
     //when a connection is recieved, create a new process with fork()
     pid = fork();
     if (pid < 0)
     {
-      error("Error in creating child process to serve client.\n")
+      error("Error in creating child process to serve client.\n");
     }
 
     //in the child process:
@@ -111,7 +137,7 @@ void main(int argc, char* argv[])
       //validate the plaintext
       if(plaintext_size == 0)
       {
-        error("Did not recieve valid header from client.\n")
+        error("Did not recieve valid header from client.\n");
       }
 
       plaintext = (char*)calloc(plaintext_size, sizeof(char));
@@ -134,18 +160,53 @@ void main(int argc, char* argv[])
         strcat(plaintext, buffer);
         memset(buffer, '\0', BUFFSIZE);
       }
-      char* remove = strstr(buffer)
-      //recieve size of key from enc_client
+      //strip off the trailing newline at the end of the plaintext
+      char* remove = strstr(plaintext, "\n");
+      strcpy(remove, "\0");
 
+
+      //reset the buffer for the next recieve
+      memset(buffer, '\0', BUFFSIZE);
+      //recieve size of key from enc_client
+      key_size = atoi(buffer);
+
+      if(plaintext_size == 0)
+      {
+        error("Did not recieve valid header from client.\n")
+      }
 
       //recieve key from enc_client
+      key = (char*)calloc(key_size, sizeof(char));
+      memset(buffer, '\0', BUFFSIZE);
 
+       while (strstr(buffer, "\n") == NULL)
+      {
+        recv(client_socket, buffer, BUFFSIZE - 1, 0);
+        //check that all data recived is valid
+        for(int i = 0; i < strlen(buffer); i++)
+        {
+          char curr = buffer[i];
+          if (((int)curr != 32) && (((int)curr - 65) > 25))
+          {
+            error("Recieved invalid plaintext input from client.\n");
+          }
+        }
+        //concatenate the contents of the buffer to the plaintext
+        strcat(key, buffer);
+        memset(buffer, '\0', BUFFSIZE);
+      }
+      remove = strstr(key, "\n");
+      strcpy(remove, "\0");
 
       //verify that key is at least as large as plaintext. if not, error and terminate connection
-
+      if (key_size < plaintext_size)
+      {
+        error("Key is not large enough to encrypt plaintext.\n")
+      }
 
       //encode the data using the OTP algorithm
-
+      ciphertext = (char*)calloc(plaintext_size, sizeof(char));
+      encrypt(plaintext, key, &ciphertext);
 
       //send processsend encoded data as response to client
 
@@ -153,11 +214,15 @@ void main(int argc, char* argv[])
       //close client connection
 
       
-      //terminate the child process
+      //free memory and terminate the child process
+      free(ciphertext);
+      free(key);
+      free(plaintext);
+      free(buffer);
     }
 
   }
   //close the socket
 
-  exit(EXIT_SUCCESS);
+  return;
 }

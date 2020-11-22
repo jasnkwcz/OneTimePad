@@ -4,35 +4,29 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
 
-char chars[27] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+#define CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 
-int writekeys(int keylen);
-
-int main(int argc, char* argv[]) {
-  int random;
-  int key;
-  
-  if (argc < 2){
-    fprintf(stderr, "Please specify the size of the key file.\n");
-    return 1;
-  }
-
-  //write the keys to stdout
-  key = writekeys(atoi(argv[1]));
-  return 0;
+int ctoi(char c)
+{
+  //char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+  char find = c;
+  char* ptr = strchr(CHARS, find);
+  int index = ptr - CHARS;
+  return index;
 }
 
-int writekeys(int keylen)
+char itoc(int i)
 {
-  //initialize random number generator seed
-  srand(time(0));
-  int key;
-  
-  for (key = 0; key < keylen; key++)
-  {
-        putchar(chars[rand() % 27]);
-  }
-  putchar('\n');
-  return key;
+  char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+  return(chars[i]);
+}
+
+int main(void)
+{
+  int myctoi = ctoi('X');
+  char myitoc = itoc(2);
+  printf("myctoi: %d\nmyitoc: %c\n", myctoi, myitoc);
+  return 0;
 }
